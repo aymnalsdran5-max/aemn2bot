@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyberpunk Telegram App Hub</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase App & Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#050508',
+                            card: 'rgba(15, 17, 26, 0.75)',
+                            cyan: '#00f3ff',
+                            magenta: '#ff007f',
+                            lime: '#00ff66',
+                            purple: '#7b2cbf',
+                            dark: '#08090e'
+                        }
+                    },
+                    boxShadow: {
+                        'neon-cyan': '0 0 15px rgba(0, 243, 255, 0.4)',
+                        'neon-magenta': '0 0 15px rgba(255, 0, 127, 0.4)',
+                        'neon-lime': '0 0 15px rgba(0, 255, 102, 0.4)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #050508;
+            color: #e2e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        .glass-card {
+            background: rgba(15, 17, 26, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 243, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .neon-border-cyan { border-color: rgba(0, 243, 255, 0.5); }
+        .neon-border-magenta { border-color: rgba(255, 0, 127, 0.5); }
+        .neon-text-glow { text-shadow: 0 0 10px rgba(0, 243, 255, 0.6); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen pb-24 text-slate-100 select-none">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 glass-card border-b border-cyber-cyan/20 px-4 py-3">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <img id="userAvatar" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100" class="w-10 h-10 rounded-full border-2 border-cyber-cyan shadow-neon-cyan object-cover">
+                    <div class="absolute -bottom-1 -right-1 bg-cyber-lime w-3.5 h-3.5 rounded-full border-2 border-cyber-bg"></div>
+                </div>
+                <div>
+                    <h1 id="userName" class="text-sm font-bold text-white leading-tight">زائر تليجرام</h1>
+                    <p id="appTitle" class="text-xs text-cyber-cyan font-mono neon-text-glow">HUB VIP v2.5</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="toggleLanguage()" class="p-2 rounded-xl bg-cyber-dark/80 border border-cyber-cyan/30 text-cyber-cyan text-xs font-bold hover:bg-cyber-cyan/20 transition">
+                    <span id="langLabel">EN</span>
+                </button>
+                <button onclick="requireAdminAuth(openBotSettingsModal)" class="p-2 rounded-xl bg-cyber-dark/80 border border-cyber-magenta/40 text-cyber-magenta hover:bg-cyber-magenta/20 transition flex items-center gap-1 text-xs font-bold shadow-neon-magenta">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    <span id="botSettingsBtnText">الأدمن</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mt-3 relative">
+            <i data-lucide="search" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-cyber-cyan"></i>
+            <input type="text" id="searchInput" oninput="renderApps()" placeholder="ابحث عن تطبيق، بوت، أو أداة..." class="w-full bg-cyber-dark/90 border border-cyber-cyan/30 rounded-xl pr-10 pl-4 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyber-cyan focus:shadow-neon-cyan transition">
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="p-4 space-y-6">
+
+        <!-- Banner Slider -->
+        <div class="relative rounded-2xl overflow-hidden glass-card p-4 border border-cyber-magenta/40 bg-gradient-to-r from-cyber-purple/30 to-cyber-dark">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] uppercase font-mono tracking-widest text-cyber-lime bg-cyber-lime/10 px-2.5 py-0.5 rounded-full border border-cyber-lime/30">مميز الأسبوع</span>
+                <span class="text-xs text-slate-400 font-mono">100% Verifed</span>
+            </div>
+            <h2 id="heroTitle" class="text-lg font-extrabold text-white mb-1">متجر تطبيقات وتطبيقات ويب ذكي</h2>
+            <p id="heroDesc" class="text-xs text-slate-300 mb-3">حمل ملفات APK الموثوقة أو جرب تطبيقات الويب والبوتات مباشرة.</p>
+            <div class="flex gap-2">
+                <button onclick="requireAdminAuth(openAddAppModal)" class="bg-cyber-magenta hover:bg-cyber-magenta/80 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-neon-magenta flex items-center gap-2 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span id="addAppBtnText">نشر تطبيق (أدمن)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+            <button onclick="setCategory('all')" class="cat-btn active bg-cyber-cyan text-cyber-bg px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-neon-cyan transition" data-cat="all">الكل</button>
+            <button onclick="setCategory('tools')" class="cat-btn glass-card text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap hover:text-cyber-cyan transition" data-cat="tools">أدوات</button>
+            <button onclick="setCategory('games')" class="cat-btn glass-card text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap hover:text-cyber-cyan transition" data-cat="games">ألعاب</button>
+            <button onclick="setCategory('bots')" class="cat-btn glass-card text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap hover:text-cyber-cyan transition" data-cat="bots">بوتات وتطبيقات ويب</button>
+            <button onclick="setCategory('mods')" class="cat-btn glass-card text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap hover:text-cyber-cyan transition" data-cat="mods">معدلة/APK</button>
+        </div>
+
+        <!-- Apps Grid -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h3 id="appsHeaderTitle" class="text-sm font-bold text-cyber-cyan flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                    قائمة التطبيقات المتاحة
+                </h3>
+                <span id="appCount" class="text-xs font-mono text-slate-400">0 تطبيق</span>
+            </div>
+            <div id="appsGrid" class="grid grid-cols-1 gap-3">
+                <!-- Apps inserted dynamically -->
+            </div>
+        </div>
+
+        <!-- Community Request & Voting -->
+        <div class="glass-card rounded-2xl p-4 border border-cyber-lime/30">
+            <div class="flex items-center justify-between mb-3">
+                <h3 id="requestTitle" class="text-sm font-bold text-cyber-lime flex items-center gap-2">
+                    <i data-lucide="vote" class="w-4 h-4"></i>
+                    طلبات المجتمع والتصويت
+                </h3>
+            </div>
+            <div class="flex gap-2 mb-3">
+                <input type="text" id="requestInput" placeholder="اكتب اسم التطبيق المطلوب..." class="flex-1 bg-cyber-dark border border-cyber-lime/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyber-lime">
+                <button onclick="submitRequest()" class="bg-cyber-lime text-cyber-bg px-4 py-2 rounded-xl text-xs font-bold shadow-neon-lime hover:bg-cyber-lime/80">إرسال</button>
+            </div>
+            <div id="requestsList" class="space-y-2">
+                <!-- Requests inserted dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-3 left-4 right-4 z-40 glass-card rounded-2xl border border-cyber-cyan/30 px-6 py-2.5 flex items-center justify-around shadow-lg">
+        <button onclick="switchTab('home')" class="nav-btn text-cyber-cyan flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span id="navHome">الرئيسية</span>
+        </button>
+        <button onclick="switchTab('top')" class="nav-btn text-slate-400 hover:text-cyber-cyan flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i data-lucide="flame" class="w-5 h-5"></i>
+            <span id="navTop">الأعلى تقييماً</span>
+        </button>
+        <button onclick="switchTab('favs')" class="nav-btn text-slate-400 hover:text-cyber-cyan flex flex-col items-center gap-1 text-[10px] font-bold">
+            <i data-lucide="heart" class="w-5 h-5"></i>
+            <span id="navFavs">المفضلة</span>
+        </button>
+    </nav>
+
+    <!-- Auth PIN Modal (Passcode: 2011) -->
+    <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-xs rounded-2xl p-5 border border-cyber-magenta shadow-neon-magenta text-center">
+            <div class="w-12 h-12 rounded-full bg-cyber-magenta/20 border border-cyber-magenta text-cyber-magenta mx-auto flex items-center justify-center mb-3">
+                <i data-lucide="lock" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-base font-bold text-white mb-1">منطقة الأدمن</h3>
+            <p class="text-xs text-slate-400 mb-4">أدخل رمز الأمان للوصول لإعدادات البوت والنشر</p>
+            <input type="password" id="pinInput" maxlength="6" placeholder="رمز الأمان..." class="w-full bg-cyber-dark border border-cyber-magenta rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-white mb-4 focus:outline-none">
+            <div class="flex gap-2">
+                <button onclick="closeAuthModal()" class="flex-1 bg-slate-800 text-slate-300 py-2 rounded-xl text-xs font-bold">إلغاء</button>
+                <button onclick="verifyPin()" class="flex-1 bg-cyber-magenta text-white py-2 rounded-xl text-xs font-bold shadow-neon-magenta">تأكيد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bot Settings Modal -->
+    <div id="botModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-sm rounded-2xl p-5 border border-cyber-cyan shadow-neon-cyan">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-cyber-cyan flex items-center gap-2">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    ربط Bot API الخاص بك
+                </h3>
+                <button onclick="closeBotSettingsModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">Telegram Bot Token:</label>
+                    <input type="text" id="botTokenInput" placeholder="123456789:ABCdef..." class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyber-cyan">
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">عند إدخال التوكن، سيقوم البوت بإرسال روابط التطبيقات مباشرة لمحادثة المستخدم عند الطلب.</p>
+                <button onclick="saveBotToken()" class="w-full bg-cyber-cyan text-cyber-bg py-2.5 rounded-xl text-xs font-bold shadow-neon-cyan">حفظ الإعدادات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add App Modal -->
+    <div id="addAppModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-md rounded-2xl p-5 border border-cyber-magenta shadow-neon-magenta max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-cyber-magenta flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    إضافة تطبيق أو بوت جديد
+                </h3>
+                <button onclick="closeAddAppModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="addAppForm" onsubmit="saveNewApp(event)" class="space-y-3">
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">اسم التطبيق:</label>
+                    <input type="text" id="newAppName" required class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">الفئة:</label>
+                    <select id="newAppCategory" class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs text-white">
+                        <option value="tools">أدوات</option>
+                        <option value="games">ألعاب</option>
+                        <option value="bots">بوتات وتطبيقات ويب</option>
+                        <option value="mods">معدلة/APK</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">رابط التحميل / البوت / التطبيق:</label>
+                    <input type="text" id="newAppUrl" required placeholder="https://... أو @bot_username" class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">رابط الأيقونة (صورة):</label>
+                    <input type="url" id="newAppIcon" placeholder="https://..." class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-300 block mb-1">الوصف:</label>
+                    <textarea id="newAppDesc" rows="2" class="w-full bg-cyber-dark border border-cyber-cyan/30 rounded-xl px-3 py-2 text-xs text-white"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-cyber-magenta text-white py-2.5 rounded-xl text-xs font-bold shadow-neon-magenta mt-2">نشر التطبيق فوراً</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Live Demo Modal -->
+    <div id="demoModal" class="fixed inset-0 z-50 bg-black/90 hidden flex flex-col">
+        <div class="p-3 glass-card flex justify-between items-center border-b border-cyber-cyan/30">
+            <span id="demoTitle" class="text-xs font-bold text-cyber-cyan">معاينة التطبيق</span>
+            <button onclick="closeDemoModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <iframe id="demoIframe" class="w-full flex-1 border-0" src=""></iframe>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 glass-card px-4 py-2.5 rounded-xl border border-cyber-cyan text-cyber-cyan text-xs font-bold shadow-neon-cyan transition-all transform -translate-y-20 opacity-0 pointer-events-none flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4"></i>
+        <span id="toastMsg">إشعار</span>
+    </div>
+
+    <!-- Script Implementation -->
+    <script>
+        const ADMIN_PIN = "2011";
+        let isAuth = false;
+        let pendingAdminAction = null;
+        let currentLang = 'ar';
+        let currentCategory = 'all';
+        let botToken = localStorage.getItem('tg_bot_token') || '';
+        let favorites = JSON.parse(localStorage.getItem('tg_app_favs') || '[]');
+
+        // Default Data
+        let appsData = JSON.parse(localStorage.getItem('tg_apps_data')) || [
+            {
+                id: '1',
+                name: 'Telegram Bot Father',
+                category: 'bots',
+                url: 'https://t.me/BotFather',
+                icon: 'https://telegram.org/img/t_logo.png',
+                desc: 'البوت الرسمي لإدارة وبناء بوتات تليجرام.',
+                rating: 4.9,
+                downloads: 12500,
+                safe: true
+            },
+            {
+                id: '2',
+                name: 'Cyberpunk Mini Game',
+                category: 'games',
+                url: 'https://2048game.com',
+                icon: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=100',
+                desc: 'لعبة ويب حية خفيفة وسريعة.',
+                rating: 4.7,
+                downloads: 8400,
+                safe: true
+            }
+        ];
+
+        let requestsData = JSON.parse(localStorage.getItem('tg_requests_data')) || [
+            { id: '101', title: 'تطبيق WhatsApp Plus APK', votes: 14 }
+        ];
+
+        // Telegram WebApp Init
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            if (tg.initDataUnsafe?.user) {
+                const user = tg.initDataUnsafe.user;
+                document.getElementById('userName').innerText = `${user.first_name || ''} ${user.last_name || ''}`;
+                if (user.photo_url) {
+                    document.getElementById('userAvatar').src = user.photo_url;
+                }
+            }
+        }
+
+        // Language Strings
+        const langStrings = {
+            ar: {
+                langLabel: 'EN',
+                addAppBtnText: 'نشر تطبيق (أدمن)',
+                heroTitle: 'متجر تطبيقات وتطبيقات ويب ذكي',
+                heroDesc: 'حمل ملفات APK الموثوقة أو جرب تطبيقات الويب والبوتات مباشرة.',
+                navHome: 'الرئيسية', navTop: 'الأعلى تقييماً', navFavs: 'المفضلة'
+            },
+            en: {
+                langLabel: 'AR',
+                addAppBtnText: 'Publish App (Admin)',
+                heroTitle: 'Smart Cyberpunk App Hub',
+                heroDesc: 'Download safe APKs or launch Telegram bots & WebApps directly.',
+                navHome: 'Home', navTop: 'Top Rated', navFavs: 'Favorites'
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            document.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            document.getElementById('langLabel').innerText = langStrings[currentLang].langLabel;
+            document.getElementById('addAppBtnText').innerText = langStrings[currentLang].addAppBtnText;
+            document.getElementById('heroTitle').innerText = langStrings[currentLang].heroTitle;
+            document.getElementById('heroDesc').innerText = langStrings[currentLang].heroDesc;
+            document.getElementById('navHome').innerText = langStrings[currentLang].navHome;
+            document.getElementById('navTop').innerText = langStrings[currentLang].navTop;
+            document.getElementById('navFavs').innerText = langStrings[currentLang].navFavs;
+            showToast(currentLang === 'ar' ? 'تم تغيير اللغة' : 'Language Switched');
+        }
+
+        // Admin Security PIN Logic
+        function requireAdminAuth(actionCallback) {
+            if (isAuth) {
+                actionCallback();
+            } else {
+                pendingAdminAction = actionCallback;
+                document.getElementById('authModal').classList.remove('hidden');
+            }
+        }
+
+        function verifyPin() {
+            const input = document.getElementById('pinInput').value.trim();
+            if (input === ADMIN_PIN) {
+                isAuth = true;
+                closeAuthModal();
+                showToast('تمت المصادقة كأدمن بنجاح');
+                if (pendingAdminAction) {
+                    pendingAdminAction();
+                    pendingAdminAction = null;
+                }
+            } else {
+                showToast('رمز الأمان غير صحيح!');
+                document.getElementById('pinInput').value = '';
+            }
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('pinInput').value = '';
+        }
+
+        // Render Functions
+        function renderApps() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const grid = document.getElementById('appsGrid');
+            grid.innerHTML = '';
+
+            const filtered = appsData.filter(app => {
+                const matchCat = currentCategory === 'all' || app.category === currentCategory;
+                const matchSearch = app.name.toLowerCase().includes(search) || app.desc.toLowerCase().includes(search);
+                return matchCat && matchSearch;
+            });
+
+            document.getElementById('appCount').innerText = `${filtered.length} تطبيق`;
+
+            filtered.forEach(app => {
+                const isFav = favorites.includes(app.id);
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-2xl p-3 border border-cyber-cyan/20 flex gap-3 items-center hover:border-cyber-cyan/50 transition';
+                card.innerHTML = `
+                    <img src="${app.icon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100'}" class="w-14 h-14 rounded-xl object-cover border border-cyber-cyan/30">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h4 class="text-xs font-bold text-white truncate">${app.name}</h4>
+                            ${app.safe ? '<span class="text-[9px] bg-cyber-lime/10 text-cyber-lime px-1.5 py-0.5 rounded border border-cyber-lime/30">آمن</span>' : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400 line-clamp-1 mb-1.5">${app.desc}</p>
+                        <div class="flex items-center gap-3 text-[10px] text-slate-300 font-mono">
+                            <span class="text-yellow-400">★ ${app.rating}</span>
+                            <span>📥 ${app.downloads}</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <button onclick="handleAppOpen('${app.id}')" class="bg-cyber-cyan/20 hover:bg-cyber-cyan text-cyber-cyan hover:text-cyber-bg border border-cyber-cyan/40 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-neon-cyan">
+                            <span>فتح</span>
+                            <i data-lucide="external-link" class="w-3 h-3"></i>
+                        </button>
+                        <div class="flex gap-1 justify-end">
+                            <button onclick="toggleFav('${app.id}')" class="p-1 rounded-lg bg-cyber-dark text-${isFav ? 'cyber-magenta' : 'slate-400'}"><i data-lucide="heart" class="w-3.5 h-3.5"></i></button>
+                            ${app.url.startsWith('http') ? `<button onclick="openDemo('${app.url}', '${app.name}')" class="p-1 rounded-lg bg-cyber-dark text-cyber-lime"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>` : ''}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function handleAppOpen(appId) {
+            const app = appsData.find(a => a.id === appId);
+            if (!app) return;
+
+            app.downloads++;
+            saveData();
+            renderApps();
+
+            if (botToken) {
+                sendViaBotApi(app);
+            }
+
+            if (app.url.startsWith('@') || app.url.includes('t.me/')) {
+                const handle = app.url.replace('https://t.me/', '').replace('@', '');
+                if (tg && tg.openTelegramLink) {
+                    tg.openTelegramLink(`https://t.me/${handle}`);
+                } else {
+                    window.open(`https://t.me/${handle}`, '_blank');
+                }
+            } else {
+                window.open(app.url, '_blank');
+            }
+        }
+
+        function sendViaBotApi(app) {
+            if (!botToken || !tg?.initDataUnsafe?.user?.id) return;
+            const chatId = tg.initDataUnsafe.user.id;
+            const text = `🚀 *${app.name}*\n\n${app.desc}\n\n🔗 الرابط: ${app.url}`;
+            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'Markdown' })
+            }).catch(e => console.error(e));
+        }
+
+        // Demo Preview
+        function openDemo(url, title) {
+            document.getElementById('demoTitle').innerText = title;
+            document.getElementById('demoIframe').src = url;
+            document.getElementById('demoModal').classList.remove('hidden');
+        }
+
+        function closeDemoModal() {
+            document.getElementById('demoModal').classList.add('hidden');
+            document.getElementById('demoIframe').src = '';
+        }
+
+        // Requests & Voting
+        function renderRequests() {
+            const container = document.getElementById('requestsList');
+            container.innerHTML = '';
+            requestsData.forEach(req => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-cyber-dark/80 p-2.5 rounded-xl border border-cyber-lime/20 text-xs';
+                div.innerHTML = `
+                    <span class="text-white font-medium">${req.title}</span>
+                    <button onclick="upvoteRequest('${req.id}')" class="bg-cyber-lime/10 text-cyber-lime px-2.5 py-1 rounded-lg border border-cyber-lime/30 flex items-center gap-1 font-mono font-bold hover:bg-cyber-lime/20">
+                        <i data-lucide="thumbs-up" class="w-3 h-3"></i>
+                        <span>${req.votes}</span>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function submitRequest() {
+            const input = document.getElementById('requestInput');
+            const val = input.value.trim();
+            if (!val) return;
+            requestsData.push({ id: Date.now().toString(), title: val, votes: 1 });
+            input.value = '';
+            saveData();
+            renderRequests();
+            showToast('تم إرسال طلبك بنجاح');
+        }
+
+        function upvoteRequest(id) {
+            const req = requestsData.find(r => r.id === id);
+            if (req) {
+                req.votes++;
+                saveData();
+                renderRequests();
+            }
+        }
+
+        // Add App / Modals
+        function openAddAppModal() {
+            document.getElementById('addAppModal').classList.remove('hidden');
+        }
+
+        function closeAddAppModal() {
+            document.getElementById('addAppModal').classList.add('hidden');
+        }
+
+        function saveNewApp(e) {
+            e.preventDefault();
+            const name = document.getElementById('newAppName').value.trim();
+            const category = document.getElementById('newAppCategory').value;
+            const url = document.getElementById('newAppUrl').value.trim();
+            const icon = document.getElementById('newAppIcon').value.trim();
+            const desc = document.getElementById('newAppDesc').value.trim();
+
+            const newApp = {
+                id: Date.now().toString(),
+                name, category, url,
+                icon: icon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100',
+                desc: desc || 'لا يوجد وصف مفصل.',
+                rating: 5.0,
+                downloads: 1,
+                safe: true
+            };
+
+            appsData.unshift(newApp);
+            saveData();
+            renderApps();
+            closeAddAppModal();
+            showToast('تم نشر التطبيق بنجاح!');
+        }
+
+        function openBotSettingsModal() {
+            document.getElementById('botTokenInput').value = botToken;
+            document.getElementById('botModal').classList.remove('hidden');
+        }
+
+        function closeBotSettingsModal() {
+            document.getElementById('botModal').classList.add('hidden');
+        }
+
+        function saveBotToken() {
+            botToken = document.getElementById('botTokenInput').value.trim();
+            localStorage.setItem('tg_bot_token', botToken);
+            closeBotSettingsModal();
+            showToast('تم حفظ توكن البوت بنجاح');
+        }
+
+        // Favorites & Storage
+        function toggleFav(id) {
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(f => f !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('tg_app_favs', JSON.stringify(favorites));
+            renderApps();
+        }
+
+        function setCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                if (b.dataset.cat === cat) {
+                    b.className = 'cat-btn active bg-cyber-cyan text-cyber-bg px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-neon-cyan transition';
+                } else {
+                    b.className = 'cat-btn glass-card text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap hover:text-cyber-cyan transition';
+                }
+            });
+            renderApps();
+        }
+
+        function saveData() {
+            localStorage.setItem('tg_apps_data', JSON.stringify(appsData));
+            localStorage.setItem('tg_requests_data', JSON.stringify(requestsData));
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('-translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('-translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+
+        // Init
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderApps();
+            renderRequests();
+        });
+    </script>
+</body>
+</html>
