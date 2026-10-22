@@ -15,7 +15,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 module.exports = async (req, res) => {
-    // إذا قام شخص بفتح الرابط من المتصفح، سيرد عليه برسالة تأكيد أن السيرفر يعمل
     if (req.method === 'GET') {
         return res.status(200).json({ status: 'Bot Webhook Server is Active and Ready!' });
     }
@@ -46,7 +45,17 @@ module.exports = async (req, res) => {
         
         if (message.document) {
             const fileId = message.document.file_id;
-            fileUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`;
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+            
+            // طلب مسار الملف الحقيقي من سيرفرات تيليجرام
+            const resFile = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+            const fileData = await resFile.json();
+            
+            if (fileData.ok) {
+                const filePath = fileData.result.file_path;
+                // تركيب رابط التنزيل المباشر الصحيح
+                fileUrl = `https://api.telegram.org/file/bot${token}/${filePath}`;
+            }
         }
 
         await addDoc(collection(db, "apps"), {
@@ -55,7 +64,7 @@ module.exports = async (req, res) => {
             title: title,
             version: 'v1.0',
             size: 'مباشر من القناة',
-            modFeatures: 'مفحوص وآمن',
+            modFeatures: itemType === 'quran' ? 'تلاوة خاشعة' : 'آمن ومفحوص',
             iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg",
             apkUrl: fileUrl,
             description: description,
