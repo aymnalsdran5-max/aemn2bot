@@ -1,0 +1,72 @@
+const fetch = require('node-fetch');
+const { initializeApp } = require("firebase/app");
+const { getFirestore, collection, addDoc, serverTimestamp } = require("firebase/firestore");
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDujZqLLN3nfSybLKSJavNTSBG0Bv7Lq0U",
+    authDomain: "aemnstore.firebaseapp.com",
+    projectId: "aemnstore",
+    storageBucket: "aemnstore.firebasestorage.app",
+    messagingSenderId: "418588320744",
+    appId: "1:418588320744:web:50749f1cd6e87e8c01ba5d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+module.exports = async (req, res) => {
+    // إذا قام شخص بفتح الرابط من المتصفح، سيرد عليه برسالة تأكيد أن السيرفر يعمل
+    if (req.method === 'GET') {
+        return res.status(200).json({ status: 'Bot Webhook Server is Active and Ready!' });
+    }
+
+    try {
+        const update = req.body;
+        const message = update.channel_post || update.message;
+        if (!message || !message.caption) {
+            return res.status(200).json({ status: 'No caption found, ignored.' });
+        }
+
+        const caption = message.caption;
+        let itemType = 'apk';
+        
+        if (caption.includes('#quran')) {
+            itemType = 'quran';
+        } else if (caption.includes('#bot')) {
+            itemType = 'bot';
+        } else if (caption.includes('#apk')) {
+            itemType = 'apk';
+        }
+
+        const lines = caption.split('\n');
+        const title = lines[0].replace('#', '').trim() || 'تطبيق جديد';
+        const description = caption;
+
+        let fileUrl = "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg";
+        
+        if (message.document) {
+            const fileId = message.document.file_id;
+            fileUrl = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`;
+        }
+
+        await addDoc(collection(db, "apps"), {
+            type: itemType,
+            authorUid: 'telegram_bot_sync',
+            title: title,
+            version: 'v1.0',
+            size: 'مباشر من القناة',
+            modFeatures: 'مفحوص وآمن',
+            iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg",
+            apkUrl: fileUrl,
+            description: description,
+            downloads: 0,
+            comments: [],
+            createdAt: serverTimestamp()
+        });
+
+        return res.status(200).json({ success: true, message: 'Synced to store successfully!' });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+};
